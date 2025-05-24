@@ -21,7 +21,7 @@ public class User {
     private String password;
 
     @Column(nullable = false)
-    private String name;
+    private String nickname;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
