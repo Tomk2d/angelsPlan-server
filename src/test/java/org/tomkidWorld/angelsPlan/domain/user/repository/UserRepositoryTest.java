@@ -22,7 +22,7 @@ class UserRepositoryTest {
         User user = new User();
         user.setEmail("test@example.com");
         user.setPassword("password");
-        user.setName("Test User");
+        user.setNickname("Test User");
         entityManager.persist(user);
         entityManager.flush();
 
@@ -39,7 +39,7 @@ class UserRepositoryTest {
         User user = new User();
         user.setEmail("test@example.com");
         user.setPassword("password");
-        user.setName("Test User");
+        user.setNickname("Test User");
         entityManager.persist(user);
         entityManager.flush();
 
@@ -49,6 +49,6 @@ class UserRepositoryTest {
         // then
         assertThat(found).isNotNull();
         assertThat(found.getEmail()).isEqualTo("test@example.com");
-        assertThat(found.getName()).isEqualTo("Test User");
+        assertThat(found.getNickname()).isEqualTo("Test User");
     }
 } 

@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
 import lombok.Setter;
+import org.tomkidWorld.angelsPlan.domain.user.validator.NicknameConstraint;
+import org.tomkidWorld.angelsPlan.domain.user.validator.PasswordConstraint;
 
 @Getter
 @Setter
@@ -13,8 +15,9 @@ public class SignUpRequest {
     private String email;
 
     @NotBlank(message = "비밀번호는 필수 입력값입니다.")
+    @PasswordConstraint
     private String password;
 
-    @NotBlank(message = "이름은 필수 입력값입니다.")
-    private String name;
+    @NicknameConstraint
+    private String nickname;
 } 

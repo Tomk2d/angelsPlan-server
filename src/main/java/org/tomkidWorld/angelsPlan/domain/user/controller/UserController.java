@@ -26,4 +26,22 @@ public class UserController {
     public ResponseEntity<User> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(userService.login(request));
     }
+
+    @GetMapping("/check-nickname")
+    public ResponseEntity<NicknameAvailabilityResponse> checkNicknameAvailability(@RequestParam String nickname) {
+        boolean isAvailable = !userService.isNicknameExists(nickname);
+        return ResponseEntity.ok(new NicknameAvailabilityResponse(isAvailable));
+    }
+
+    public static class NicknameAvailabilityResponse {
+        private final boolean available;
+
+        public NicknameAvailabilityResponse(boolean available) {
+            this.available = available;
+        }
+
+        public boolean isAvailable() {
+            return available;
+        }
+    }
 } 
