@@ -1,20 +1,26 @@
 package org.tomkidWorld.angelsPlan.domain.user.controller;
 
+import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.tomkidWorld.angelsPlan.domain.user.dto.LoginRequest;
+import org.tomkidWorld.angelsPlan.domain.user.dto.LoginResponse;
 import org.tomkidWorld.angelsPlan.domain.user.dto.SignUpRequest;
+import org.tomkidWorld.angelsPlan.domain.user.dto.VerifyEmailRequest;
 import org.tomkidWorld.angelsPlan.domain.user.entity.User;
+import org.tomkidWorld.angelsPlan.domain.user.service.EmailService;
 import org.tomkidWorld.angelsPlan.domain.user.service.UserService;
 
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
     private final UserService userService;
+    private final EmailService emailService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, EmailService emailService) {
         this.userService = userService;
+        this.emailService = emailService;
     }
 
     @PostMapping("/signup")
@@ -23,8 +29,24 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<User> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(userService.login(request));
+    }
+
+    @PostMapping("/email/verify/send")
+    public ResponseEntity<Void> sendVerificationEmail(@RequestParam String email) {
+        try {
+            emailService.sendVerificationEmail(email);
+            return ResponseEntity.ok().build();
+        } catch (MessagingException e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @PostMapping("/email/verify")
+    public ResponseEntity<Boolean> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        boolean isVerified = emailService.verifyEmail(request.getEmail(), request.getCode());
+        return ResponseEntity.ok(isVerified);
     }
 
     @GetMapping("/check-nickname")

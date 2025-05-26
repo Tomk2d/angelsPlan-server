@@ -10,8 +10,10 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.tomkidWorld.angelsPlan.domain.user.dto.LoginRequest;
+import org.tomkidWorld.angelsPlan.domain.user.dto.LoginResponse;
 import org.tomkidWorld.angelsPlan.domain.user.dto.SignUpRequest;
 import org.tomkidWorld.angelsPlan.domain.user.entity.User;
+import org.tomkidWorld.angelsPlan.domain.user.service.EmailService;
 import org.tomkidWorld.angelsPlan.domain.user.service.UserService;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -32,9 +34,13 @@ class UserControllerTest {
     @MockBean
     private UserService userService;
 
+    @MockBean
+    private EmailService emailService;
+
     private SignUpRequest signUpRequest;
     private LoginRequest loginRequest;
     private User user;
+    private LoginResponse loginResponse;
 
     @BeforeEach
     void setUp() {
@@ -52,6 +58,13 @@ class UserControllerTest {
         user.setEmail("test@example.com");
         user.setPassword("password1234!");
         user.setNickname("TestUser");
+
+        loginResponse = LoginResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .nickname(user.getNickname())
+                .token("test.jwt.token")
+                .build();
     }
 
     @Test
@@ -86,15 +99,17 @@ class UserControllerTest {
     @DisplayName("유효한 로그인 요청시 성공한다")
     void login_WithValidCredentials_ReturnsUser() throws Exception {
         // given
-        given(userService.login(any(LoginRequest.class))).willReturn(user);
+        given(userService.login(any(LoginRequest.class))).willReturn(loginResponse);
 
         // when & then
         mockMvc.perform(post("/api/users/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.email").value(user.getEmail()))
-                .andExpect(jsonPath("$.nickname").value(user.getNickname()));
+                .andExpect(jsonPath("$.nickname").value(user.getNickname()))
+                .andExpect(jsonPath("$.token").value("test.jwt.token"));
     }
 
     @Test
