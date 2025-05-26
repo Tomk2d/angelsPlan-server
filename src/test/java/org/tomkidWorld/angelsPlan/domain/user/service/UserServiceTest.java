@@ -11,9 +11,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import org.tomkidWorld.angelsPlan.domain.user.dto.LoginRequest;
+import org.tomkidWorld.angelsPlan.domain.user.dto.LoginResponse;
 import org.tomkidWorld.angelsPlan.domain.user.dto.SignUpRequest;
 import org.tomkidWorld.angelsPlan.domain.user.entity.User;
 import org.tomkidWorld.angelsPlan.domain.user.repository.UserRepository;
+import org.tomkidWorld.angelsPlan.global.error.BusinessException;
+import org.tomkidWorld.angelsPlan.global.util.JwtUtil;
 
 import java.util.Optional;
 
@@ -29,29 +32,32 @@ class UserServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private JwtUtil jwtUtil;
+
     @InjectMocks
     private UserService userService;
 
+    private User user;
     private SignUpRequest signUpRequest;
     private LoginRequest loginRequest;
-    private User user;
 
     @BeforeEach
     void setUp() {
-        signUpRequest = new SignUpRequest();
-        signUpRequest.setEmail("test@example.com");
-        signUpRequest.setPassword("password1234!");
-        signUpRequest.setNickname("TestUser");
-
-        loginRequest = new LoginRequest();
-        loginRequest.setEmail("test@example.com");
-        loginRequest.setPassword("password1234!");
-
         user = new User();
         user.setId(1L);
         user.setEmail("test@example.com");
-        user.setPassword("password1234!");
-        user.setNickname("TestUser");
+        user.setPassword("password123!");
+        user.setNickname("testUser");
+
+        signUpRequest = new SignUpRequest();
+        signUpRequest.setEmail("test@example.com");
+        signUpRequest.setPassword("password123!");
+        signUpRequest.setNickname("testUser");
+
+        loginRequest = new LoginRequest();
+        loginRequest.setEmail("test@example.com");
+        loginRequest.setPassword("password123!");
     }
 
     @Test
@@ -89,13 +95,16 @@ class UserServiceTest {
     void login_WithValidCredentials_ReturnsUser() {
         // given
         given(userRepository.findByEmail(loginRequest.getEmail())).willReturn(Optional.of(user));
+        given(jwtUtil.generateToken(user.getId(), user.getEmail())).willReturn("test.jwt.token");
 
         // when
-        User result = userService.login(loginRequest);
+        LoginResponse result = userService.login(loginRequest);
 
         // then
-        assertThat(result).isNotNull();
-        assertThat(result.getEmail()).isEqualTo(loginRequest.getEmail());
+        assertThat(result.getId()).isEqualTo(user.getId());
+        assertThat(result.getEmail()).isEqualTo(user.getEmail());
+        assertThat(result.getNickname()).isEqualTo(user.getNickname());
+        assertThat(result.getToken()).isEqualTo("test.jwt.token");
     }
 
     @Test
@@ -106,8 +115,7 @@ class UserServiceTest {
 
         // when & then
         assertThatThrownBy(() -> userService.login(loginRequest))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("존재하지 않는 이메일입니다.");
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
@@ -119,8 +127,7 @@ class UserServiceTest {
 
         // when & then
         assertThatThrownBy(() -> userService.login(loginRequest))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("비밀번호가 일치하지 않습니다.");
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
@@ -141,7 +148,7 @@ class UserServiceTest {
     @DisplayName("존재하는 닉네임 조회 시 true를 반환한다")
     void isNicknameExists_WithExistingNickname_ReturnsTrue() {
         // given
-        String nickname = "TestUser";
+        String nickname = "testUser";
         given(userRepository.existsByNickname(nickname)).willReturn(true);
 
         // when

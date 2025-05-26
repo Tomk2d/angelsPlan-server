@@ -7,19 +7,23 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.tomkidWorld.angelsPlan.domain.user.dto.LoginRequest;
+import org.tomkidWorld.angelsPlan.domain.user.dto.LoginResponse;
 import org.tomkidWorld.angelsPlan.domain.user.dto.SignUpRequest;
 import org.tomkidWorld.angelsPlan.domain.user.entity.User;
 import org.tomkidWorld.angelsPlan.domain.user.repository.UserRepository;
 import org.tomkidWorld.angelsPlan.global.error.BusinessException;
 import org.tomkidWorld.angelsPlan.global.error.ErrorCode;
+import org.tomkidWorld.angelsPlan.global.util.JwtUtil;
 
 @Service
 public class UserService {
     private final Logger logger = LoggerFactory.getLogger(UserService.class);
     private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, JwtUtil jwtUtil) {
         this.userRepository = userRepository;
+        this.jwtUtil = jwtUtil;
     }
 
     @Transactional
@@ -42,7 +46,7 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public User login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request) {
         logger.info("로그인 시도 - 이메일: {}", request.getEmail());
         
         User user = userRepository.findByEmail(request.getEmail())
@@ -52,7 +56,14 @@ public class UserService {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
         }
 
-        return user;
+        String token = jwtUtil.generateToken(user.getId(), user.getEmail());
+
+        return LoginResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .nickname(user.getNickname())
+                .token(token)
+                .build();
     }
 
     @Cacheable(value = "nicknameExists", key = "#nickname", unless = "#result == false")
