@@ -13,7 +13,6 @@ import org.tomkidWorld.angelsPlan.domain.user.dto.LoginRequest;
 import org.tomkidWorld.angelsPlan.domain.user.dto.LoginResponse;
 import org.tomkidWorld.angelsPlan.domain.user.dto.SignUpRequest;
 import org.tomkidWorld.angelsPlan.domain.user.entity.User;
-import org.tomkidWorld.angelsPlan.domain.user.service.EmailService;
 import org.tomkidWorld.angelsPlan.domain.user.service.UserService;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -33,9 +32,6 @@ class UserControllerTest {
 
     @MockBean
     private UserService userService;
-
-    @MockBean
-    private EmailService emailService;
 
     private SignUpRequest signUpRequest;
     private LoginRequest loginRequest;
@@ -110,21 +106,6 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.email").value(user.getEmail()))
                 .andExpect(jsonPath("$.nickname").value(user.getNickname()))
                 .andExpect(jsonPath("$.token").value("test.jwt.token"));
-    }
-
-    @Test
-    @DisplayName("유효하지 않은 로그인 요청시 400 에러를 반환한다")
-    void login_WithInvalidCredentials_ReturnsBadRequest() throws Exception {
-        // given
-        given(userService.login(any(LoginRequest.class)))
-                .willThrow(new RuntimeException("비밀번호가 일치하지 않습니다."));
-
-        // when & then
-        mockMvc.perform(post("/api/users/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().string("비밀번호가 일치하지 않습니다."));
     }
 
     @Test

@@ -15,4 +15,9 @@ public class BusinessException extends RuntimeException {
         super(message);
         this.errorCode = errorCode;
     }
+
+    public BusinessException(String message) {
+        super(message);
+        this.errorCode = ErrorCode.INVALID_INPUT_VALUE;
+    }
 } 

@@ -72,4 +72,11 @@ public class UserService {
         logger.info("닉네임 중복 체크 DB 조회 - 닉네임: {}", nickname);
         return userRepository.existsByNickname(nickname);
     }
+
+    @Transactional(readOnly = true)
+    public User findById(Long userId) {
+        logger.info("사용자 조회 - ID: {}", userId);
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+    }
 } 
