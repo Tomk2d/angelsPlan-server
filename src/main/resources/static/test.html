@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script>
+        let stompClient = null;
+
+        function connect() {
+            const socket = new SockJS('http://localhost:8080/ws');
+            stompClient = Stomp.over(socket);
+            stompClient.connect({}, function(frame) {
+                console.log('Connected: ' + frame);
+                document.getElementById('status').textContent = 'Connected!';
+                
+                stompClient.subscribe('/topic/messages', function(message) {
+                    console.log('Received: ' + message.body);
+                    const response = document.getElementById('response');
+                    response.textContent = message.body;
+                });
+            });
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('message').value;
+            stompClient.send("/app/send", {}, message);
+        }
+    </script>
+</head>
+<body>
+    <h2>WebSocket Test</h2>
+    <div>
+        <button onclick="connect()">Connect</button>
+        <span id="status">Not connected</span>
+    </div>
+    <div>
+        <input type="text" id="message" placeholder="Type a message">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+    <div>
+        <h3>Response:</h3>
+        <p id="response"></p>
+    </div>
+</body>
+</html> 
