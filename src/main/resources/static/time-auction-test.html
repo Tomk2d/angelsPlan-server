@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>시간 경매 게임 테스트</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        .room-list { margin-top: 20px; }
+        .room-item { 
+            border: 1px solid #ddd; 
+            padding: 10px; 
+            margin-bottom: 10px; 
+            border-radius: 4px;
+        }
+        .status { margin: 10px 0; padding: 10px; background: #f0f0f0; }
+        #log { 
+            margin-top: 20px; 
+            padding: 10px; 
+            background: #f8f8f8; 
+            border: 1px solid #ddd; 
+            height: 200px; 
+            overflow-y: auto; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>시간 경매 게임 테스트</h1>
+        
+        <div class="status" id="connectionStatus">연결 상태: 연결되지 않음</div>
+        
+        <div>
+            <h3>방 생성</h3>
+            <input type="text" id="roomName" placeholder="방 이름">
+            <button onclick="createRoom()">방 만들기</button>
+        </div>
+
+        <div>
+            <h3>방 참가</h3>
+            <input type="text" id="roomId" placeholder="방 ID">
+            <button onclick="joinRoom()">참가하기</button>
+        </div>
+
+        <div class="room-list">
+            <h3>방 목록</h3>
+            <div id="roomList"></div>
+        </div>
+
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let stompClient = null;
+        let playerId = 'player_' + Math.random().toString(36).substr(2, 9);
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `<div>[${time}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function connect() {
+            log('WebSocket 연결 시도...');
+            const socket = new SockJS('http://localhost:8080/ws');
+            stompClient = Stomp.over(socket);
+            
+            const headers = {
+                'user': playerId
+            };
+            
+            stompClient.connect(headers, function(frame) {
+                document.getElementById('connectionStatus').textContent = '연결 상태: 연결됨';
+                log('WebSocket 연결 성공');
+                console.log('Connected: ' + frame);
+                
+                // 방 목록 구독
+                stompClient.subscribe('/topic/time-auction/rooms', function(message) {
+                    const room = JSON.parse(message.body);
+                    log('방 정보 업데이트 수신: ' + JSON.stringify(room));
+                    console.log('방 정보 업데이트:', room);
+                    updateRoomList(room);
+                });
+            }, function(error) {
+                log('WebSocket 연결 실패: ' + error);
+                console.error('Connection error:', error);
+            });
+        }
+
+        function createRoom() {
+            const roomName = document.getElementById('roomName').value;
+            if (!roomName) {
+                alert('방 이름을 입력해주세요');
+                return;
+            }
+
+            log('방 생성 요청: ' + roomName);
+            stompClient.send("/app/time-auction/create", {}, JSON.stringify({
+                roomName: roomName,
+                playerId: playerId
+            }));
+        }
+
+        function joinRoom() {
+            const roomId = document.getElementById('roomId').value;
+            if (!roomId) {
+                alert('방 ID를 입력해주세요');
+                return;
+            }
+
+            log('방 참가 요청: ' + roomId);
+            stompClient.send("/app/time-auction/join", {}, JSON.stringify({
+                roomId: roomId,
+                playerId: playerId
+            }));
+        }
+
+        function updateRoomList(room) {
+            const roomList = document.getElementById('roomList');
+            const roomElement = document.createElement('div');
+            roomElement.className = 'room-item';
+            roomElement.innerHTML = `
+                <h4>${room.roomName}</h4>
+                <p>방 ID: ${room.roomId}</p>
+                <p>현재 라운드: ${room.currentRound}/${room.totalRounds}</p>
+                <p>참가자 수: ${room.playerIds.length}/${room.maxPlayers}</p>
+                <p>상태: ${room.isActive ? '활성' : '비활성'}</p>
+            `;
+            roomList.appendChild(roomElement);
+        }
+
+        // 페이지 로드 시 연결
+        document.addEventListener('DOMContentLoaded', connect);
+    </script>
+</body>
+</html> 

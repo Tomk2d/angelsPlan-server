@@ -3,55 +3,65 @@ package org.tomkidWorld.angelsPlan.domain.game.timeAuction.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.tomkidWorld.angelsPlan.domain.user.entity.User;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
 @Entity
+@Table(name = "time_auction_rooms")
 @Getter
 @Setter
-@Table(name = "time_auction_rooms")
 public class TimeAuctionRoom {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true)
+    @Column(name = "room_id", unique = true, nullable = false)
     private String roomId;
 
+    @Column(name = "room_name", nullable = false)
     private String roomName;
-    private boolean isGameStarted;
-    private int currentRound;
-    private int maxPlayers = 4;
-    private int currentPlayers = 0;
 
-    @ManyToMany
-    @JoinTable(
-        name = "time_auction_room_players",
-        joinColumns = @JoinColumn(name = "room_id"),
-        inverseJoinColumns = @JoinColumn(name = "user_id")
-    )
-    private Set<User> players = new HashSet<>();
+    @Column(name = "current_round")
+    private Integer currentRound = 0;
 
-    public void addPlayer(User player) {
-        if (players.size() < maxPlayers && !isGameStarted) {
-            players.add(player);
-            currentPlayers++;
+    @Column(name = "total_rounds")
+    private Integer totalRounds = 10;
+
+    @Column(name = "max_players")
+    private Integer maxPlayers = 4;
+
+    @ElementCollection
+    @CollectionTable(name = "time_auction_room_players", joinColumns = @JoinColumn(name = "room_table_id"))
+    @Column(name = "player_id")
+    private Set<String> playerIds = new HashSet<>();
+
+    @Column(name = "is_active")
+    private Boolean isActive = true;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    public void addPlayer(String playerId) {
+        if (!isFull()) {
+            playerIds.add(playerId);
         }
     }
 
-    public void removePlayer(User player) {
-        if (players.remove(player)) {
-            currentPlayers--;
-        }
+    public void removePlayer(String playerId) {
+        playerIds.remove(playerId);
     }
 
     public boolean isFull() {
-        return currentPlayers >= maxPlayers;
-    }
-
-    public boolean isEmpty() {
-        return currentPlayers == 0;
+        return playerIds.size() >= maxPlayers;
     }
 } 

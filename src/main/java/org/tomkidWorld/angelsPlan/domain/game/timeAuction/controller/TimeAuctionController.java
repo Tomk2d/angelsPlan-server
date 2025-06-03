@@ -1,48 +1,63 @@
 package org.tomkidWorld.angelsPlan.domain.game.timeAuction.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.handler.annotation.DestinationVariable;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
-import org.tomkidWorld.angelsPlan.domain.game.timeAuction.dto.TimeAuctionMessage;
+import org.tomkidWorld.angelsPlan.domain.game.timeAuction.dto.CreateRoomMessage;
+import org.tomkidWorld.angelsPlan.domain.game.timeAuction.dto.JoinRoomMessage;
+import org.tomkidWorld.angelsPlan.domain.game.timeAuction.dto.LeaveRoomMessage;
 import org.tomkidWorld.angelsPlan.domain.game.timeAuction.dto.TimeAuctionRoomDto;
 import org.tomkidWorld.angelsPlan.domain.game.timeAuction.service.TimeAuctionRoomService;
 
+@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class TimeAuctionController {
+
     private final TimeAuctionRoomService roomService;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    @MessageMapping("/timeAuction/create")
-    @SendTo("/topic/game/rooms")
-    public TimeAuctionMessage createRoom(TimeAuctionMessage message) {
-        TimeAuctionRoomDto room = roomService.createRoom(message.getRoomName(), Long.parseLong(message.getPlayerId()));
-        message.setType("ROOM_CREATED");
-        message.setRoomId(room.getRoomId());
-        return message;
+    @MessageMapping("/time-auction/create")
+    public void createRoom(@Payload CreateRoomMessage message, SimpMessageHeaderAccessor headerAccessor) {
+        log.info("방 생성 요청 받음: {}", message);
+        String playerId = headerAccessor.getUser() != null ? headerAccessor.getUser().getName() : message.getPlayerId();
+        log.info("사용자 ID: {}", playerId);
+        
+        TimeAuctionRoomDto roomDto = new TimeAuctionRoomDto();
+        roomDto.setRoomName(message.getRoomName());
+        TimeAuctionRoomDto room = roomService.createRoom(roomDto, playerId);
+        log.info("방 생성 완료: {}", room);
+        
+        messagingTemplate.convertAndSend("/topic/time-auction/rooms", room);
     }
 
-    @MessageMapping("/timeAuction/join/{roomId}")
-    @SendTo("/topic/game/{roomId}")
-    public TimeAuctionMessage joinRoom(@DestinationVariable String roomId, TimeAuctionMessage message) {
-        TimeAuctionRoomDto room = roomService.joinRoom(roomId, Long.parseLong(message.getPlayerId()));
-        message.setType("PLAYER_JOINED");
-        return message;
+    @MessageMapping("/time-auction/join")
+    public void joinRoom(@Payload JoinRoomMessage message, SimpMessageHeaderAccessor headerAccessor) {
+        log.info("방 참가 요청 받음: {}", message);
+        String playerId = headerAccessor.getUser() != null ? headerAccessor.getUser().getName() : message.getPlayerId();
+        log.info("사용자 ID: {}", playerId);
+        
+        String roomId = message.getRoomId();
+        TimeAuctionRoomDto room = roomService.joinRoom(roomId, playerId);
+        log.info("방 참가 완료: {}", room);
+        
+        messagingTemplate.convertAndSend("/topic/time-auction/rooms", room);
     }
 
-    @MessageMapping("/timeAuction/leave/{roomId}")
-    @SendTo("/topic/game/{roomId}")
-    public TimeAuctionMessage leaveRoom(@DestinationVariable String roomId, TimeAuctionMessage message) {
-        roomService.leaveRoom(roomId, Long.parseLong(message.getPlayerId()));
-        message.setType("PLAYER_LEFT");
-        return message;
-    }
-
-    @MessageMapping("/timeAuction/rooms")
-    @SendTo("/topic/game/rooms")
-    public TimeAuctionMessage getRooms(TimeAuctionMessage message) {
-        message.setType("ROOM_LIST");
-        return message;
+    @MessageMapping("/time-auction/leave")
+    public void leaveRoom(@Payload LeaveRoomMessage message, SimpMessageHeaderAccessor headerAccessor) {
+        log.info("방 퇴장 요청 받음: {}", message);
+        String playerId = headerAccessor.getUser() != null ? headerAccessor.getUser().getName() : message.getPlayerId();
+        log.info("사용자 ID: {}", playerId);
+        
+        String roomId = message.getRoomId();
+        TimeAuctionRoomDto room = roomService.leaveRoom(roomId, playerId);
+        log.info("방 퇴장 완료: {}", room);
+        
+        messagingTemplate.convertAndSend("/topic/time-auction/rooms", room);
     }
 } 
