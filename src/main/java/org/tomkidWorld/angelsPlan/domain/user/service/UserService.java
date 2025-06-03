@@ -1,7 +1,5 @@
 package org.tomkidWorld.angelsPlan.domain.user.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -14,10 +12,10 @@ import org.tomkidWorld.angelsPlan.domain.user.repository.UserRepository;
 import org.tomkidWorld.angelsPlan.global.error.BusinessException;
 import org.tomkidWorld.angelsPlan.global.error.ErrorCode;
 import org.tomkidWorld.angelsPlan.global.util.JwtUtil;
+import org.tomkidWorld.angelsPlan.global.util.PasswordEncoder;
 
 @Service
 public class UserService {
-    private final Logger logger = LoggerFactory.getLogger(UserService.class);
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
 
@@ -27,7 +25,7 @@ public class UserService {
     }
 
     @Transactional
-    @CacheEvict(value = "nicknameExists", allEntries = true) // 회원가입 시 캐시 전체 삭제
+    @CacheEvict(value = "nicknameExists", allEntries = true)
     public User signUp(SignUpRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new BusinessException(ErrorCode.EMAIL_DUPLICATION);
@@ -39,7 +37,7 @@ public class UserService {
 
         User user = new User();
         user.setEmail(request.getEmail());
-        user.setPassword(request.getPassword());  // 실제 프로젝트에서는 반드시 암호화 필요
+        user.setPassword(PasswordEncoder.encode(request.getPassword()));  // 비밀번호 암호화
         user.setNickname(request.getNickname());
 
         return userRepository.save(user);
@@ -47,12 +45,11 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
-        logger.info("로그인 시도 - 이메일: {}", request.getEmail());
-        
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-
-        if (!user.getPassword().equals(request.getPassword())) {
+        
+        // PasswordEncoder.matches()를 사용하여 비밀번호 검증
+        if (!PasswordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
         }
 
@@ -69,13 +66,11 @@ public class UserService {
     @Cacheable(value = "nicknameExists", key = "#nickname", unless = "#result == false")
     @Transactional(readOnly = true)
     public boolean isNicknameExists(String nickname) {
-        logger.info("닉네임 중복 체크 DB 조회 - 닉네임: {}", nickname);
         return userRepository.existsByNickname(nickname);
     }
 
     @Transactional(readOnly = true)
     public User findById(Long userId) {
-        logger.info("사용자 조회 - ID: {}", userId);
         return userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
     }
