@@ -24,6 +24,28 @@
             height: 200px; 
             overflow-y: auto; 
         }
+        .player-list {
+            margin-top: 10px;
+            padding: 5px;
+            background: #f5f5f5;
+        }
+        .host {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .start-game-btn {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .start-game-btn:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -55,6 +77,7 @@
     <script>
         let stompClient = null;
         let playerId = 'player_' + Math.random().toString(36).substr(2, 9);
+        let currentRoomId = null;
 
         function log(message) {
             const logDiv = document.getElementById('log');
@@ -84,6 +107,12 @@
                     console.log('방 정보 업데이트:', room);
                     updateRoomList(room);
                 });
+
+                // 에러 메시지 구독
+                stompClient.subscribe('/topic/time-auction/error', function(message) {
+                    log('에러 발생: ' + message.body);
+                    alert(message.body);
+                });
             }, function(error) {
                 log('WebSocket 연결 실패: ' + error);
                 console.error('Connection error:', error);
@@ -102,6 +131,24 @@
                 roomName: roomName,
                 playerId: playerId
             }));
+
+            // 방 생성 후 자동으로 참가
+            stompClient.subscribe('/topic/time-auction/rooms', function(message) {
+                const room = JSON.parse(message.body);
+                if (room.roomName === roomName && room.playerIds.includes(playerId)) {
+                    log('방 생성 및 참가 완료. 방 ID: ' + room.roomId);
+                    document.getElementById('roomId').value = room.roomId;
+                    // 구독 해제
+                    stompClient.unsubscribe('/topic/time-auction/rooms');
+                    // 다시 구독
+                    stompClient.subscribe('/topic/time-auction/rooms', function(message) {
+                        const room = JSON.parse(message.body);
+                        log('방 정보 업데이트 수신: ' + JSON.stringify(room));
+                        console.log('방 정보 업데이트:', room);
+                        updateRoomList(room);
+                    });
+                }
+            });
         }
 
         function joinRoom() {
@@ -118,18 +165,78 @@
             }));
         }
 
+        function leaveRoom(roomId) {
+            log('방 퇴장 요청: ' + roomId);
+            stompClient.send("/app/time-auction/leave", {}, JSON.stringify({
+                roomId: roomId,
+                playerId: playerId
+            }));
+            currentRoomId = null;
+        }
+
+        function startGame(roomId) {
+            log('게임 시작 요청: ' + roomId);
+            stompClient.send("/app/time-auction/start", {}, JSON.stringify({
+                roomId: roomId,
+                playerId: playerId
+            }));
+        }
+
         function updateRoomList(room) {
             const roomList = document.getElementById('roomList');
-            const roomElement = document.createElement('div');
-            roomElement.className = 'room-item';
+            let roomElement = document.querySelector(`[data-room-id="${room.roomId}"]`);
+            
+            if (!roomElement) {
+                roomElement = document.createElement('div');
+                roomElement.className = 'room-item';
+                roomElement.setAttribute('data-room-id', room.roomId);
+                roomList.appendChild(roomElement);
+            }
+
+            const isHost = room.hostId === playerId;
+            const isInRoom = room.playerIds.includes(playerId);
+            
+            console.log('Room Update:', {
+                roomId: room.roomId,
+                hostId: room.hostId,
+                playerId: playerId,
+                isHost: isHost,
+                isInRoom: isInRoom,
+                playerCount: room.playerIds.length,
+                minPlayers: room.minPlayers
+            });
+            
+            let playerList = '';
+            room.playerIds.forEach(id => {
+                const isPlayerHost = id === room.hostId;
+                playerList += `<div class="${isPlayerHost ? 'host' : ''}">${id}${isPlayerHost ? ' (방장)' : ''}</div>`;
+            });
+
             roomElement.innerHTML = `
                 <h4>${room.roomName}</h4>
                 <p>방 ID: ${room.roomId}</p>
                 <p>현재 라운드: ${room.currentRound}/${room.totalRounds}</p>
                 <p>참가자 수: ${room.playerIds.length}/${room.maxPlayers}</p>
-                <p>상태: ${room.isActive ? '활성' : '비활성'}</p>
+                <p>상태: ${room.status}</p>
+                <div class="player-list">
+                    <strong>참가자 목록:</strong>
+                    ${playerList}
+                </div>
+                ${isInRoom ? `
+                    <button onclick="leaveRoom('${room.roomId}')">퇴장하기</button>
+                    ${isHost ? `
+                        <button class="start-game-btn" 
+                                onclick="startGame('${room.roomId}')"
+                                ${room.playerIds.length < room.minPlayers ? 'disabled' : ''}>
+                            게임 시작
+                        </button>
+                    ` : ''}
+                ` : ''}
             `;
-            roomList.appendChild(roomElement);
+
+            if (isInRoom) {
+                currentRoomId = room.roomId;
+            }
         }
 
         // 페이지 로드 시 연결

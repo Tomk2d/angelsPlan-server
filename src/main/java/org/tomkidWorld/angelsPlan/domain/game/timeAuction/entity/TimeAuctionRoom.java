@@ -35,6 +35,9 @@ public class TimeAuctionRoom {
     @Column(name = "max_players")
     private Integer maxPlayers = 4;
 
+    @Column(name = "min_players")
+    private Integer minPlayers = 2;
+
     @ElementCollection
     @CollectionTable(name = "time_auction_room_players", joinColumns = @JoinColumn(name = "room_table_id"))
     @Column(name = "player_id")
@@ -52,9 +55,10 @@ public class TimeAuctionRoom {
     private LocalDateTime updatedAt;
 
     public void addPlayer(String playerId) {
-        if (!isFull()) {
-            playerIds.add(playerId);
+        if (playerIds.size() >= maxPlayers) {
+            throw new IllegalStateException("방이 가득 찼습니다.");
         }
+        playerIds.add(playerId);
     }
 
     public void removePlayer(String playerId) {
