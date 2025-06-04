@@ -7,10 +7,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
-import org.tomkidWorld.angelsPlan.domain.game.timeAuction.dto.CreateRoomMessage;
-import org.tomkidWorld.angelsPlan.domain.game.timeAuction.dto.JoinRoomMessage;
-import org.tomkidWorld.angelsPlan.domain.game.timeAuction.dto.LeaveRoomMessage;
-import org.tomkidWorld.angelsPlan.domain.game.timeAuction.dto.TimeAuctionRoomDto;
+import org.tomkidWorld.angelsPlan.domain.game.timeAuction.dto.*;
 import org.tomkidWorld.angelsPlan.domain.game.timeAuction.service.TimeAuctionRoomService;
 
 @Slf4j
@@ -23,41 +20,57 @@ public class TimeAuctionController {
 
     @MessageMapping("/time-auction/create")
     public void createRoom(@Payload CreateRoomMessage message, SimpMessageHeaderAccessor headerAccessor) {
-        log.info("방 생성 요청 받음: {}", message);
-        String playerId = headerAccessor.getUser() != null ? headerAccessor.getUser().getName() : message.getPlayerId();
-        log.info("사용자 ID: {}", playerId);
+        String playerId = headerAccessor.getUser().getName();
+        log.info("=== WebSocket create room 요청 받음, playerId: {}, roomName: {} ===", playerId, message.getRoomName());
         
-        TimeAuctionRoomDto roomDto = new TimeAuctionRoomDto();
-        roomDto.setRoomName(message.getRoomName());
-        TimeAuctionRoomDto room = roomService.createRoom(roomDto, playerId);
-        log.info("방 생성 완료: {}", room);
+        TimeAuctionRoomDto roomDto = TimeAuctionRoomDto.builder()
+                .roomName(message.getRoomName())
+                .hostId(playerId)
+                .currentRound(0)
+                .totalRounds(10)
+                .maxPlayers(4)
+                .minPlayers(2)
+                .status("WAITING")
+                .build();
         
-        messagingTemplate.convertAndSend("/topic/time-auction/rooms", room);
+        TimeAuctionRoomDto createdRoom = roomService.updateRoom(roomDto);
+        messagingTemplate.convertAndSend("/topic/time-auction/rooms", createdRoom);
     }
 
     @MessageMapping("/time-auction/join")
     public void joinRoom(@Payload JoinRoomMessage message, SimpMessageHeaderAccessor headerAccessor) {
-        log.info("방 참가 요청 받음: {}", message);
-        String playerId = headerAccessor.getUser() != null ? headerAccessor.getUser().getName() : message.getPlayerId();
-        log.info("사용자 ID: {}", playerId);
+        String playerId = headerAccessor.getUser().getName();
+        log.info("=== WebSocket join 요청 받음, playerId: {}, roomId: {} ===", playerId, message.getRoomId());
         
-        String roomId = message.getRoomId();
-        TimeAuctionRoomDto room = roomService.joinRoom(roomId, playerId);
-        log.info("방 참가 완료: {}", room);
-        
-        messagingTemplate.convertAndSend("/topic/time-auction/rooms", room);
+        TimeAuctionRoomDto updatedRoom = roomService.joinRoom(message.getRoomId(), playerId);
+        messagingTemplate.convertAndSend("/topic/time-auction/rooms", updatedRoom);
     }
 
     @MessageMapping("/time-auction/leave")
     public void leaveRoom(@Payload LeaveRoomMessage message, SimpMessageHeaderAccessor headerAccessor) {
-        log.info("방 퇴장 요청 받음: {}", message);
-        String playerId = headerAccessor.getUser() != null ? headerAccessor.getUser().getName() : message.getPlayerId();
-        log.info("사용자 ID: {}", playerId);
+        String playerId = headerAccessor.getUser().getName();
+        log.info("=== WebSocket leave 요청 받음, playerId: {}, roomId: {} ===", playerId, message.getRoomId());
         
-        String roomId = message.getRoomId();
-        TimeAuctionRoomDto room = roomService.leaveRoom(roomId, playerId);
-        log.info("방 퇴장 완료: {}", room);
+        TimeAuctionRoomDto updatedRoom = roomService.leaveRoom(message.getRoomId(), playerId);
+        messagingTemplate.convertAndSend("/topic/time-auction/rooms", updatedRoom);
+    }
+
+    @MessageMapping("/time-auction/start")
+    public void startGame(@Payload StartGameMessage message, SimpMessageHeaderAccessor headerAccessor) {
+        String playerId = headerAccessor.getUser().getName();
+        log.info("=== WebSocket start game 요청 받음, playerId: {}, roomId: {} ===", playerId, message.getRoomId());
         
-        messagingTemplate.convertAndSend("/topic/time-auction/rooms", room);
+        TimeAuctionRoomDto updatedRoom = roomService.startGame(message.getRoomId(), playerId);
+        messagingTemplate.convertAndSend("/topic/time-auction/rooms", updatedRoom);
+    }
+
+    @MessageMapping("/time-auction/bet")
+    public void placeBet(@Payload BetMessage message, SimpMessageHeaderAccessor headerAccessor) {
+        String playerId = headerAccessor.getUser().getName();
+        log.info("=== WebSocket bet 요청 받음, playerId: {}, roomId: {}, amount: {} ===", 
+                playerId, message.getRoomId(), message.getAmount());
+        
+        TimeAuctionRoomDto updatedRoom = roomService.placeBet(message.getRoomId(), playerId, message.getAmount());
+        messagingTemplate.convertAndSend("/topic/time-auction/rooms", updatedRoom);
     }
 } 

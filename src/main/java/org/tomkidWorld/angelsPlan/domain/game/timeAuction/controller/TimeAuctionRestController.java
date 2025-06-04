@@ -18,6 +18,23 @@ public class TimeAuctionRestController {
     private final TimeAuctionRoomService roomService;
 
     /**
+     * 빠른 참가 API
+     * 1. 참가 가능한 방이 있으면 가장 인원이 많고 오래된 방에 참가
+     * 2. 없으면 새 방 생성
+     */
+    @PostMapping("/quick-join")
+    public ResponseEntity<TimeAuctionRoomDto> quickJoin(@RequestParam(name = "playerId") String playerId) {
+        log.info("=== Quick Join 요청 받음, playerId: {} ===", playerId);
+        try {
+            TimeAuctionRoomDto room = roomService.quickJoin(playerId);
+            return ResponseEntity.ok(room);
+        } catch (Exception e) {
+            log.error("Quick Join 에러 발생: ", e);
+            throw e;
+        }
+    }
+
+    /**
      * 헬스 체크용 테스트 엔드포인트
      */
     @GetMapping("/health")
